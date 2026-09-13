@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="theme-color" content="#11131a" />
+  <title>Pilzraum – Schwarzwald 3D-Taxonomie</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><strong>Pilzraum</strong><span>Schwarzwald · offline-first</span></div>
+    <div class="search-wrap">
+      <input id="search" type="search" placeholder="Lokale Art suchen …" autocomplete="off" />
+      <button id="onlineSearchBtn" class="icon-btn" title="iNaturalist online durchsuchen" aria-label="Online suchen">＋</button>
+      <button id="filterBtn" class="icon-btn" aria-label="Filter">☷</button>
+      <button id="visualBtn" class="icon-btn" aria-label="Darstellung einstellen" title="Darstellung">⚙</button>
+      <button id="offlinePhotosBtn" class="icon-btn" aria-label="Offline-Bilder" title="Bilder fürs Handy herunterladen">⇩</button>
+      <button id="themeBtn" class="icon-btn" aria-label="Hell-/Dunkelmodus" title="Hellmodus">☀</button>
+    </div>
+    <nav id="rankBar" class="rankbar" aria-label="Taxonomische Auflösung"></nav>
+  </header>
+
+  <main id="app">
+    <canvas id="treeCanvas"></canvas>
+    <canvas id="labelCanvas" aria-hidden="true"></canvas>
+    <div id="hud" class="hud">
+      <div class="hud-title">Farbe = Klasse</div>
+      <div id="classLegend" class="class-legend"></div>
+      <div><span class="dot added"></span>später hinzugefügt</div>
+      <div class="hint">ziehen: drehen · Mausrad/2 Finger: zoomen · Hover: Name · antippen: Details</div>
+    </div>
+    <div id="status" class="status"></div>
+  </main>
+
+  <aside id="filterPanel" class="panel filter-panel hidden">
+    <div class="panel-head"><h2>Baum filtern</h2><button data-close="filterPanel">×</button></div>
+    <fieldset class="taxon-filter-block">
+      <legend>Taxonomie</legend>
+      <div class="muted small">Jede Ebene kann einzeln gefiltert werden. Höhere Ebenen schränken die Auswahl darunter automatisch ein.</div>
+      <label>Stamm
+        <select id="taxFilterPhylum"><option value="">alle Stämme</option></select>
+      </label>
+      <label>Klasse
+        <select id="taxFilterClass"><option value="">alle Klassen</option></select>
+      </label>
+      <label>Ordnung
+        <select id="taxFilterOrder"><option value="">alle Ordnungen</option></select>
+      </label>
+      <label>Familie
+        <select id="taxFilterFamily"><option value="">alle Familien</option></select>
+      </label>
+      <label>Gattung
+        <select id="taxFilterGenus"><option value="">alle Gattungen</option></select>
+      </label>
+      <label>Art
+        <select id="taxFilterSpecies"><option value="">alle Arten</option></select>
+      </label>
+    </fieldset>
+    <label>Mind. iNaturalist-Beobachtungen <input id="minObs" type="number" min="0" value="0" /></label>
+    <div class="check-grid">
+      <label><input id="phylumBasidio" type="checkbox" checked /> Basidiomycota</label>
+      <label><input id="phylumAsco" type="checkbox" checked /> Ascomycota</label>
+      <label><input id="phylumOther" type="checkbox" checked /> andere Pilze</label>
+    </div>
+    <label>Eigene Einträge
+      <select id="entryState">
+        <option value="all">alle Arten</option>
+        <option value="with">nur mit eigenen Einträgen</option>
+        <option value="without">nur ohne eigene Einträge</option>
+      </select>
+    </label>
+    <fieldset>
+      <legend>Von mir gefunden am</legend>
+      <div class="date-row"><label>von <input id="foundFrom" type="date" /></label><label>bis <input id="foundTo" type="date" /></label></div>
+      <label><input id="onlyFound" type="checkbox" /> nur Arten mit mindestens einem eigenen Fund</label>
+      <div class="muted small">Ein Datumsbereich zeigt Arten, bei denen mindestens ein eigener Fund in diesem Zeitraum liegt.</div>
+    </fieldset>
+    <label><input id="onlyOwnPhotos" type="checkbox" /> nur Arten mit eigenen Fotos</label>
+    <label>Merkmals-/Notiztext enthält <input id="traitFilter" type="text" placeholder="z. B. amyloid, Lamellen …" /></label>
+    <div class="panel-actions"><button id="resetFilters">Zurücksetzen</button><button id="applyFilters" class="primary">Anwenden</button></div>
+  </aside>
+
+
+  <aside id="visualPanel" class="panel visual-panel hidden">
+    <div class="panel-head"><div><h2>3D-Darstellung</h2><div class="muted">Änderungen werden sofort sichtbar und lokal gespeichert.</div></div><button data-close="visualPanel">×</button></div>
+    <div class="visual-section">
+      <h3>Pfadlänge je Ebene</h3>
+      <div id="lengthControls" class="slider-grid"></div>
+    </div>
+    <div class="visual-section">
+      <h3>Abzweigungswinkel je Ebene</h3>
+      <div id="angleControls" class="slider-grid"></div>
+      <div class="muted small">Beim Stamm bedeutet der Winkel die Spreizung zwischen Basidio- und Ascomycota.</div>
+    </div>
+    <div class="visual-section subset-layout-section">
+      <h3>Gefilterte Ansicht</h3>
+      <div class="muted small">Entscheide, ob ein Filter nur ausblendet oder das sichtbare Subset den 3D-Raum neu nutzt.</div>
+      <div class="layout-mode-grid">
+        <label class="mode-card"><input id="layoutGlobal" type="radio" name="layoutMode" value="global" checked><span><b>Gesamtbaum-Positionen</b><small>Das Subset bleibt genau dort, wo es im großen Baum liegt.</small></span></label>
+        <label class="mode-card"><input id="layoutSubset" type="radio" name="layoutMode" value="subset"><span><b>Subset neu aufspannen</b><small>Nur sichtbare Taxa werden neu verteilt und nutzen den Raum.</small></span></label>
+      </div>
+      <div id="subsetControls" class="subset-controls hidden">
+        <div class="subset-head"><div><b>Temporäre Subset-Geometrie</b><div class="muted small">Nur für diese Ansicht; deine globalen Werte werden nicht verändert.</div></div><button id="copyGlobalToSubset" type="button">Globale Werte übernehmen</button></div>
+        <h4>Pfadlänge</h4><div id="subsetLengthControls" class="slider-grid"></div>
+        <h4>Abzweigungswinkel</h4><div id="subsetAngleControls" class="slider-grid"></div>
+      </div>
+    </div>
+    <div class="visual-section">
+      <h3>Linien & Nodes</h3>
+      <div class="slider-grid">
+        <label><span>Pfadhelligkeit <output id="pathBrightnessOut"></output></span><input id="pathBrightness" type="range" min="0.10" max="1.00" step="0.05"></label>
+        <label><span>Pfaddicke <output id="pathThicknessOut"></output></span><input id="pathThickness" type="range" min="1" max="5" step="1"></label>
+        <label><span>Größe der Artenkugeln <output id="speciesSizeOut"></output></span><input id="speciesSize" type="range" min="12" max="50" step="1"></label>
+      </div>
+    </div>
+    <div class="panel-actions"><button id="resetVisuals">Standardwerte</button><button id="closeVisuals" class="primary">Fertig</button></div>
+  </aside>
+
+
+
+  <aside id="offlinePhotosPanel" class="panel offline-photos-panel hidden">
+    <div class="panel-head"><div><h2>Offline-Bilder</h2><div class="muted">Pilzfotos erst auf dem Handy herunterladen, statt sie mit GitHub hochzuladen.</div></div><button data-close="offlinePhotosPanel">×</button></div>
+    <p>Die Taxonomie-App bleibt klein. Mit Internet kannst du hier anschließend die iNaturalist-Fotos der Arten direkt auf dieses Gerät laden. Danach werden die gespeicherten Bilder aus IndexedDB verwendet.</p>
+    <div id="offlinePhotosState" class="offline-download-state">Noch nicht geprüft.</div>
+    <progress id="offlinePhotosProgress" max="100" value="0"></progress>
+    <div class="panel-actions">
+      <button id="checkOfflinePhotos">Status prüfen</button>
+      <button id="downloadOfflinePhotos" class="primary">Fehlende Bilder herunterladen</button>
+    </div>
+    <div class="muted small">Am besten im WLAN starten. Du kannst abbrechen und später fortsetzen; bereits gespeicherte Bilder bleiben erhalten.</div>
+  </aside>
+
+  <aside id="onlinePanel" class="panel online-panel hidden">
+    <div class="panel-head"><div><h2>Art hinzufügen</h2><div class="muted">iNaturalist · Internet erforderlich</div></div><button data-close="onlinePanel">×</button></div>
+    <div class="online-search-row"><input id="onlineQuery" type="search" placeholder="z. B. Cortinarius violaceus" /><button id="runOnlineSearch" class="primary">Suchen</button></div>
+    <div id="onlineState" class="muted small"></div>
+    <div id="onlineResults" class="online-results"></div>
+  </aside>
+
+  <aside id="detailPanel" class="panel detail-panel hidden">
+    <div class="panel-head"><div><h2 id="detailName">Taxon</h2><div id="detailMeta" class="muted"></div></div><button data-close="detailPanel">×</button></div>
+    <div id="detailBadges" class="badges"></div>
+    <div id="inatPhotos" class="photo-grid"></div>
+    <section>
+      <h3>Eigene Bestimmungsmerkmale</h3>
+      <div id="traitForm" class="form-grid"></div>
+      <label>Freie Notizen<textarea id="freeNotes" rows="5" placeholder="Was hilft dir, diesen Node räumlich/inhaltlich wiederzuerkennen?"></textarea></label>
+      <label>Tags<input id="tags" type="text" placeholder="kommagetrennt, z. B. Buche, sauer, Herbst" /></label>
+    </section>
+    <section id="speciesSection" class="hidden">
+      <h3>Eigene Funde</h3>
+      <div class="find-row">
+        <input id="foundDate" type="date" />
+        <input id="lat" inputmode="decimal" placeholder="Breitengrad" />
+        <input id="lng" inputmode="decimal" placeholder="Längengrad" />
+        <button id="geoBtn">GPS</button>
+        <button id="addFind" class="primary">Fund hinzufügen</button>
+      </div>
+      <div id="findList" class="find-list"></div>
+      <h3>Eigene Fotos</h3>
+      <input id="ownPhotoInput" type="file" accept="image/*" multiple />
+      <div id="ownPhotos" class="photo-grid"></div>
+    </section>
+    <div class="panel-actions sticky"><button id="exportNode">Node als JSON</button><button id="saveNode" class="primary">Speichern</button></div>
+  </aside>
+
+  <div id="searchResults" class="search-results hidden"></div>
+  <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true">
+    <button id="lightboxClose" class="lightbox-close" aria-label="Bild schließen">×</button>
+    <img id="lightboxImg" alt="Pilzfoto groß">
+    <div id="lightboxTitle" class="lightbox-title"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
