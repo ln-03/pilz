@@ -1,9 +1,0 @@
-{
-  "name":"Pilzraum – Schwarzwald 3D-Taxonomie",
-  "short_name":"Pilzraum",
-  "start_url":"./index.html",
-  "display":"standalone",
-  "background_color":"#0d0f14",
-  "theme_color":"#11131a",
-  "description":"Offline 3D-Taxonomie der im Schwarzwald auf iNaturalist beobachteten Pilze mit eigenen Feld- und Mikroskopie-Notizen."
-}
