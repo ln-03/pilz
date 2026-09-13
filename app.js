@@ -267,7 +267,7 @@ function initGL(){
   c.addEventListener('pointermove',e=>{if(pointer.down){const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.abs(dx)+Math.abs(dy)>2)pointer.moved=true;camera.yaw+=dx*.008;camera.pitch=Math.max(-1.45,Math.min(1.45,camera.pitch+dy*.008));pointer.x=e.clientX;pointer.y=e.clientY;hoverNode=null;render();return}if(e.pointerType==='mouse'){const h=pickNearest(e.clientX,e.clientY,18);if(h!==hoverNode){hoverNode=h;renderLabels(visibleNodes())}}});
   c.addEventListener('pointerleave',()=>{if(hoverNode){hoverNode=null;renderLabels(visibleNodes())}});
   c.addEventListener('pointerup',e=>{pointer.down=false;if(!pointer.moved){const n=pickNearest(e.clientX,e.clientY,26);if(n){hoverNode=n;openDetail(n);renderLabels(visibleNodes())}}});
-  c.addEventListener('wheel',e=>{e.preventDefault();camera.zoom=Math.max(1.45,Math.min(8,camera.zoom*Math.exp(e.deltaY*.001)));render()},{passive:false});
+  c.addEventListener('wheel',e=>{e.preventDefault();camera.zoom=Math.max(1.45,Math.min(14,camera.zoom*Math.exp(e.deltaY*.001)));render()},{passive:false});
   let lastDist=0;c.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(lastDist)camera.zoom=Math.max(1.45,Math.min(8,camera.zoom*(lastDist/d)));lastDist=d;render()}},{passive:false});c.addEventListener('touchend',()=>lastDist=0)
 }
 function mkProg(vs,fs){const sh=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x},p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,vs));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p}
